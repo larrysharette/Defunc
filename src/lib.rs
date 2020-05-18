@@ -1,4 +1,7 @@
 #![allow(unused_variables)]
+
+use wasm_bindgen::prelude::*;
+
 #[allow(dead_code)]
 #[derive(Default, Debug, Clone)]
 struct JSXElement {
@@ -34,14 +37,16 @@ impl JSXElement {
     }
 }
 
-fn create_inner_html(id: &str, level: u8) -> Vec<Box<JSXElement>> {
+fn create_inner_html(id: &str, level: u8) -> (Vec<Box<JSXElement>>, u32) {
     let mut inner: Vec<Box<JSXElement>> = vec![];
+    let mut count = 0;
 
     if level == 0 {
-        return inner;
+        return (inner, 0);
     }
 
     for i in 1..12 {
+        count += 1;
         let modulated_value = i % 3;
         let newId = "{id}{i.to_string()}";
         let levelText = format!("Level {}", level);
@@ -50,52 +55,54 @@ fn create_inner_html(id: &str, level: u8) -> Vec<Box<JSXElement>> {
             JSXElement::new(newId, "div", vec![], &levelText, &levelClass, "");
 
         if modulated_value == 0 {
-            new_element.inner_html = create_inner_html(newId, level - 1);
+            let result = create_inner_html(newId, level - 1);
+            new_element.inner_html = result.0;
+            count += result.1;
         }
 
         inner.push(Box::new(new_element));
     }
 
-    return inner;
+    return (inner, count);
 }
 
-fn setup_test_data() -> Vec<JSXElement> {
+fn setup_test_data() -> (Vec<JSXElement>, u32) {
     let mut test_data: Vec<JSXElement> = vec![];
-    for i in 1..500 {
+    let mut count = 0;
+
+    for i in 1..150 {
+        count += 1;
         let modulated_value = i % 50;
         let newId = "{i.to_string()}";
         let mut new_element: JSXElement = JSXElement::new(newId, "div", vec![], "Parent", "", "");
 
         if modulated_value == 0 {
-            new_element.inner_html = create_inner_html(newId, 4);
+            let result = create_inner_html(newId, 8);
+            new_element.inner_html = result.0;
+            count += result.1;
         }
 
         test_data.push(new_element);
     }
 
-    return test_data;
+    return (test_data, count);
 }
 
-fn main() {
-    use wasm_bindgen::prelude::*;
+#[wasm_bindgen]
+pub fn run() -> u32 {
+    // Use `web_sys`'s global `window` function to get a handle on the global
+    // window object.
+    let window = web_sys::window().expect("no global `window` exists");
+    let document = window.document().expect("should have a document on window");
+    let body = document.body().expect("document should have a body");
 
-    // Called by our JS entry point to run the example
-    #[wasm_bindgen(start)]
-    pub fn run() -> Result<(), JsValue> {
-        // Use `web_sys`'s global `window` function to get a handle on the global
-        // window object.
-        let window = web_sys::window().expect("no global `window` exists");
-        let document = window.document().expect("should have a document on window");
-        let body = document.body().expect("document should have a body");
+    let data = setup_test_data();
 
-        let data = setup_test_data();
-
-        for elem in data.iter() {
-            body.append_child(&render_element(window.document().unwrap(), &elem).unwrap());
-        }
-
-        Ok(())
+    for elem in data.0.iter() {
+        body.append_child(&render_element(window.document().unwrap(), &elem).unwrap());
     }
+
+    return data.1;
 }
 
 fn render_element(
