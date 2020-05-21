@@ -1,27 +1,22 @@
 # Defunc Web Framework (Prototype Stage)
 
-This is a new web framework that is built using Rust.
+## Journal
 
-It uses wasm-bindgen to compile rust to WebAssembly and create the needed Javascript bindings to the execute code.
+### 5-20-2020
 
-It uses web-sys to handle the rendering to page.
+I've been working on the internals of how the structure of components are written. I'm still focusing on using JSX as the templating engine but I keep feeling like I'm recreating a form of a virtual dom. So far I've been researching how other frameworks are built and I'm looking at Svelte because of the performance.
 
-## Current Stage
+So far what I've built is dirty but the general idea is that components will get wrapped around a createElement function that exposes the onCreate, onUpdate, subscribe, and subscribeAsync. Names aren't great but its close enough.
 
-Currently the renderer generates a large amount of data as a test of the renderer's speed.
+- onCreate creates the DOM element and returns it. Since it returns a DOM Element the caller handles the mounting of it element. This allows for recurvisely mounting elements when the component has children.
+- onUpdate allows Component B to update specific state on Component A which then causes Component A to rerender.
+- subscribe allows any other components to subscribe to render changes on that specific component, this is blocking.
+- subscribeAsync is a non-blocking version of subscribe.
 
-Next I'll look into creating the syntax I want to use to create components. Then I'll work on a parser that creates the data structure needed for the renderer.
+Because I'm looking at compile project files, my plan is to create an element for each written component. So instead of starting of starting with a single component and recursively mounting from there, the idea is to "mount" the written elements and if we come a cross an imported component then we check to see if it is created then get that element and mount it.
 
-## Current Performance
+This is SHOULD avoid a virtual dom like structure. Hopefully...
 
-Defunc renderer:
-- 939,955 elements with 2 levels max = 11,979.32ms
-- 136,768 elements with 5 levels max = 1927.29ms
-- 2,923,375 elements with 10 levels max = 67,284.90ms
-- 72,309 elements with 8 levels max = 987.11ms
+So I think I'm going to go with component classes for now because I can't seem to accomplish what I want without some classes like features. I want other components to be able to read public properties of a component (this would act as a global).
 
-Javascript renderer:
-- 939,955 elements with 2 levels max = 11,681.48ms
-- 136,768 elements with 5 levels max = 1080.65ms
-- 2,923,375 elements with 10 levels max = 22,193.67ms
-- 72,309 elements with 8 levels max = 412.60ms
+I don't know I'm playing around with a bunch of different concepts, and prototyping. I need to write down the goals of this framework more concisely so I can compare my progress against it.

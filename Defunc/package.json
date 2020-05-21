@@ -1,0 +1,25 @@
+{
+  "name": "defunc",
+  "version": "0.0.1",
+  "description": "A component based web framework.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/larrysharette/Defunc.git"
+  },
+  "author": "Larry Sharette",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/larrysharette/Defunc/issues"
+  },
+  "homepage": "https://github.com/larrysharette/Defunc#readme",
+  "dependencies": {
+    "typescript": "^3.9.2",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.11.0"
+  }
+}

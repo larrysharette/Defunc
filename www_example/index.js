@@ -1,92 +1,118 @@
-import * as wasm from "../pkg"
+// import { runTests } from "./performanceTests"
 
-let start = performance.now()
-let count = wasm.run()
-let finish = performance.now()
+import TestComponent from '../Defunc/output/defunc'
 
-console.log(`WASM Rendered ${count} elements in ${finish - start} ms`)
+// console.log(TestComponent())
 
-console.log('Pausing for now.')
+// document.body.appendChild(TestComponent())
 
-setTimeout(() => {
-  document.body.innerHTML = ''
+// runTests()
 
-  start = performance.now()
-  count = render()
-  finish = performance.now()
-
-  console.log(`Javascript Rendered ${count} elements in ${finish - start} ms`)
-}, 5000)
-
-
-function setup_test_data() {
-  const data = []
-  let count = 0
-
-  for (let i = 1; i < 500000; i++) {
-    count++
-    let element ={
-      tag: 'div',
-      text: 'Parent',
-      class: '',
-      inner_html: []
-    }
-    if (i % 50 === 0) {
-      const result = create_inner_html(2)
-      element.inner_html = result.elements
-      count += result.count
-    }
-    data.push(element)
+function DefuncToDOM(comp) {
+  switch (comp.tag) {
+    case 'Container':
+      return 'div'
+    case 'Button':
+      return 'button'
+    case 'Text':
+      return 'p'
   }
+}
+
+
+function createElement(comp) {
+  if (comp.type === 'value') return {
+    onCreate: () => document.createTextNode(comp.value)
+  }
+
+  const nonFunctionals = Object.keys(comp.props).filter(v => typeof comp.props[v] !== 'function').reduce((t,c) =>  { t[c] = comp.props[c]; return t; }, {})
+  const functionals = Object.keys(comp.props).filter(v => typeof comp.props[v] === 'function').reduce((t,c) => { t[c] = comp.props[c]; return t; }, {})
+  const pub = { ...nonFunctionals };
+  let element = document.createElement(DefuncToDOM(comp));
+  let innerHTML = comp.value;
+  const subscriptions = [];
+  const asyncSubscriptions = [];
+
+  if (Object.keys(functionals).length > 0) {
+    Object.keys(functionals).map(key => element.addEventListener(key, functionals[key]))
+  }
+
+  function onCreate() {
+    if (typeof comp.value === 'function') {
+      element.innerHTML = comp.value(pub);
+    } else if (comp.children.length > 0) {
+      comp.children.forEach(el => element.appendChild(createElement(el).onCreate()))
+    } else {
+      element.innerHTML = comp.value;
+    }
+    return element;
+  }
+  function onUpdate(prop, value) {
+    if (typeof value === 'function') {
+      pub[prop] = value(pub);
+    } else {
+      pub[prop] = value;
+    }
+    _update();
+  }
+  async function _update() {
+    element.innerHTML = comp.value(pub);
+    executeSubs()
+    executeAsyncSubs()
+  }
+
+  function executeSubs() {
+    subscriptions.forEach((v) => v(pub));
+  }
+
+  async function executeAsyncSubs() {
+    for (let i = 0; i < asyncSubscriptions.length; i++) {
+      const sub = asyncSubscriptions[i];
+      // console.log(sub(pub))
+      await sub.then(fn => fn(pub)).catch(console.error)
+    }
+    // try {
+    //   const data = await Promise.all(asyncSubscriptions.map((fn) => fn(pub))) 
+    //   console.log(data)
+    // } catch (error) {
+    //   console.error(error)
+    // }
+  }
+
+  function subscribe(fn) {
+    if (fn instanceof Promise) {
+      asyncSubscriptions.push(fn);
+      return;
+    }
+
+    subscriptions.push(fn);
+  }
+  function subscribeAsync(fn) {
+    asyncSubscriptions.push(Promise.resolve(fn));
+  }
+
   return {
-    data,
-    count
-  }
+    pub,
+    onCreate,
+    onUpdate,
+    subscribe,
+    subscribeAsync,
+  };
 }
+// console.log(createElement({ tag: 'div', props: { text: 'here we go', count: 0 }, value: `Testing ${pub.text} ${pub.count}` }));
 
-function create_inner_html(level) {
-  const elements = []
-  let count = 0
+console.log(TestComponent.pub)
 
-  if (level === 0) return {elements,count}
+const testComponent = createElement(TestComponent());
+const button = createElement({ type: 'element', tag: 'Button', props: { click: testingTest }, children: [{ type: 'value', value: 'Testing' }] });
 
-  for (let i = 1; i < 12; i++) {
-    count++
-    let element ={
-      tag: 'div',
-      text: `Level ${level}`,
-      class: `class-${level}`,
-      inner_html: []
-    }
-    if (i % 3 === 0) {
-      const result = create_inner_html(level - 1)
-      element.inner_html = result.elements
-      count += result.count
-    }
-    elements.push(element)
-  }
+testComponent.subscribeAsync((pub) => console.log('async', JSON.stringify(pub)));
 
-  return {
-    elements, count
-  }
-}
+testComponent.subscribe((pub) => console.log('sync', JSON.stringify(pub)));
 
-function render() {
-  const result = setup_test_data()
+document.body.appendChild(testComponent.onCreate());
+document.body.appendChild(button.onCreate())
 
-  result.data.forEach(v => document.body.appendChild(render_element(v)))
-
-  return result.count
-}
-
-function render_element(element) {
-  const val = document.createElement(element.tag)
-
-  if (element.inner_html.length > 0) {
-    element.inner_html.forEach(ele => val.appendChild(render_element(ele)))
-  } else {
-    val.innerHTML  = element.text
-  }
-  val.className = element.class
-  return val
+function testingTest(e) {
+  testComponent.onUpdate('count', ({ count }) => ++count);
 }

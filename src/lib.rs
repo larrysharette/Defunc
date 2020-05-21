@@ -55,9 +55,9 @@ fn create_inner_html(id: &str, level: u8) -> (Vec<Box<JSXElement>>, u32) {
             JSXElement::new(newId, "div", vec![], &levelText, &levelClass, "");
 
         if modulated_value == 0 {
-            let result = create_inner_html(newId, level - 1);
-            new_element.inner_html = result.0;
-            count += result.1;
+            let inner = create_inner_html(newId, level - 1);
+            new_element.inner_html = inner.0;
+            count += inner.1;
         }
 
         inner.push(Box::new(new_element));
@@ -66,20 +66,20 @@ fn create_inner_html(id: &str, level: u8) -> (Vec<Box<JSXElement>>, u32) {
     return (inner, count);
 }
 
-fn setup_test_data() -> (Vec<JSXElement>, u32) {
+fn setup_test_data(elements: u32, levels: u8) -> (Vec<JSXElement>, u32) {
     let mut test_data: Vec<JSXElement> = vec![];
     let mut count = 0;
 
-    for i in 1..150 {
+    for i in 1..elements {
         count += 1;
         let modulated_value = i % 50;
         let newId = "{i.to_string()}";
         let mut new_element: JSXElement = JSXElement::new(newId, "div", vec![], "Parent", "", "");
 
         if modulated_value == 0 {
-            let result = create_inner_html(newId, 8);
-            new_element.inner_html = result.0;
-            count += result.1;
+            let inner = create_inner_html(newId, levels);
+            new_element.inner_html = inner.0;
+            count += inner.1;
         }
 
         test_data.push(new_element);
@@ -88,21 +88,29 @@ fn setup_test_data() -> (Vec<JSXElement>, u32) {
     return (test_data, count);
 }
 
+static mut result: (Vec<JSXElement>, u32) = (Vec::new(), 0);
+
 #[wasm_bindgen]
-pub fn run() -> u32 {
+pub fn generate_data(elements: u32, levels: u8) -> u32 {
+    unsafe {
+        let holding_result = setup_test_data(elements, levels);
+        result = holding_result;
+        return result.1;
+    }
+}
+
+#[wasm_bindgen]
+pub fn main() {
     // Use `web_sys`'s global `window` function to get a handle on the global
     // window object.
     let window = web_sys::window().expect("no global `window` exists");
     let document = window.document().expect("should have a document on window");
     let body = document.body().expect("document should have a body");
-
-    let data = setup_test_data();
-
-    for elem in data.0.iter() {
-        body.append_child(&render_element(window.document().unwrap(), &elem).unwrap());
+    unsafe {
+        for elem in result.0.iter() {
+            body.append_child(&render_element(window.document().unwrap(), &elem).unwrap());
+        }
     }
-
-    return data.1;
 }
 
 fn render_element(
